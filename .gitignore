@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# OS
+.DS_Store
+
+# Data / artifacts
+data/raw/*.csv
+data/raw/*.parquet
+pipelines/compiled/*.json
+**/artifacts/
+**/outputs/
+**/*.joblib
+**/*.pkl
+
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+
+# GCP
+*.json
