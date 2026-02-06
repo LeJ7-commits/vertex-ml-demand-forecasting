@@ -176,7 +176,7 @@ def main():
     pred_out["y_hi"] = hi
     pred_out.to_csv(os.path.join(args.artifacts_dir, "predictions.csv"), index=False)
 
-    print(json.dumps(metrics, indent=2))
+    print("METRICS_JSON=" + json.dumps(metrics))
 
 
 if __name__ == "__main__":
