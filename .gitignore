@@ -17,6 +17,11 @@ pipelines/compiled/*.json
 **/*.joblib
 **/*.pkl
 
+# allow experiment reports
+!reports/
+!reports/**/*.json
+
+
 # Terraform
 **/.terraform/
 **/.terraform.lock.hcl
