@@ -22,12 +22,16 @@ def main():
         template_path=args.template_path,
         pipeline_root=args.pipeline_root,
         parameter_values={
-            "project_id": args.project_id,            "dataset": args.dataset,
+            "project_id": args.project_id,
+            "region": args.region,
+            "dataset": args.dataset,
             "features_table": args.features_table,
             "gcs_prefix": args.gcs_prefix,
+            "trainer_image": os.environ["IMAGE_URI"],
             "alpha": args.alpha,
             "limit": args.limit,
         },
+
         enable_caching=True,
     )
 
