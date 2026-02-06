@@ -40,8 +40,8 @@ def pipeline(
     region: str,
     dataset: str = "demand_fcst",
     features_table: str = "features_demand_daily",
-    gcs_prefix: str = "",
-    trainer_image: str = "",
+    gcs_prefix: str = "",          # e.g. gs://<bucket>/pipeline-artifacts
+    trainer_image: str = "",       # e.g. europe-north1-docker.pkg.dev/<proj>/trainer/trainer:0.4
     alpha: float = 0.1,
     limit: int = 0,
 ):
@@ -58,6 +58,12 @@ def pipeline(
         display_name="train-demand-model",
         project=project_id,
         location=region,
+
+        # ✅ IMPORTANT: where Vertex will write AIP_MODEL_DIR (GCS) for the training job outputs
+        base_output_directory={
+            "output_uri_prefix": f"{gcs_prefix}/runs/{dsl.PIPELINE_JOB_NAME_PLACEHOLDER}/train"
+        },
+
         worker_pool_specs=[{
             "machine_spec": {
                 "machine_type": "n1-standard-4",
