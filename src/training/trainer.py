@@ -30,14 +30,28 @@ def smape(y_true: np.ndarray, y_pred: np.ndarray, eps: float = 1e-8) -> float:
 
 def date_splits(unique_dates: List[pd.Timestamp], cfg: SplitConfig) -> Tuple[pd.Timestamp, pd.Timestamp]:
     n = len(unique_dates)
+
+    # Need at least 3 distinct dates to have train / cal / test
+    if n < 3:
+        raise ValueError(f"Not enough unique dates for splitting: {n} (need >= 3)")
+
+    # If dataset is small, fall back to: last date = test, second last = cal, rest = train
+    # This guarantees non-empty (or at least meaningful) splits for 3..9 dates.
     if n < 10:
-        raise ValueError(f"Not enough unique dates for splitting: {n}")
+        train_end = unique_dates[n - 3]  # up to third-last date
+        cal_end = unique_dates[n - 2]    # second-last date
+        return train_end, cal_end
+
+    # Normal case (>=10 dates): use configured fractions
     train_end_idx = int(np.floor(n * cfg.train_frac)) - 1
     cal_end_idx = int(np.floor(n * (cfg.train_frac + cfg.cal_frac))) - 1
-    train_end = unique_dates[max(train_end_idx, 0)]
-    cal_end = unique_dates[max(cal_end_idx, 0)]
-    return train_end, cal_end
 
+    train_end_idx = np.clip(train_end_idx, 0, n - 3)  # keep room for cal+test
+    cal_end_idx = np.clip(cal_end_idx, train_end_idx + 1, n - 2)
+
+    train_end = unique_dates[int(train_end_idx)]
+    cal_end = unique_dates[int(cal_end_idx)]
+    return train_end, cal_end
 
 def load_features_from_bq(project_id: str, dataset: str, table: str, limit: int | None = None) -> pd.DataFrame:
     client = bigquery.Client(project=project_id)
