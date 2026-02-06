@@ -4,8 +4,6 @@
 --
 -- Keys: (store_id=ship-state, item_id=SKU, date)
 -- Target: y = daily SUM(Qty)
---
--- Note: BigQuery lags should be by DAY, not by ROW, so we build a daily date spine.
 
 CREATE OR REPLACE TABLE `vertex-demand-260203-13078.demand_fcst.features_demand_daily`
 PARTITION BY date
