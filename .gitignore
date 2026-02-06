@@ -25,3 +25,6 @@ pipelines/compiled/*.json
 
 # GCP
 *.json
+# training artifacts
+artifacts/
+__pycache__/
