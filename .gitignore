@@ -28,3 +28,6 @@ pipelines/compiled/*.json
 # training artifacts
 artifacts/
 __pycache__/
+
+# editor temp files
+*.swp
