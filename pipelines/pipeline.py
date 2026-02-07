@@ -10,12 +10,13 @@ from google_cloud_pipeline_components.v1.custom_job import CustomTrainingJobOp
         "google-cloud-storage>=2.16.0",
     ],
 )
+
 def extract_features_to_gcs(
     project_id: str,
     dataset: str,
     table: str,
     gcs_uri_prefix: str,
-    out_uri: OutputPath(str),   # <-- string output
+    out_uri: OutputPath(str),
 ):
     """
     Exports BigQuery table to GCS as Parquet shards.
@@ -26,15 +27,14 @@ def extract_features_to_gcs(
     src_table = f"{project_id}.{dataset}.{table}"
     dest_dir = f"{gcs_uri_prefix}/bq_export/"
     dest_uri = f"{dest_dir}features-*.parquet"
-    
+
     job_config = bigquery.job.ExtractJobConfig(destination_format="PARQUET")
     job = client.extract_table(src_table, dest_uri, job_config=job_config)
     job.result()
-    
-    # Output only the directory path
-    with open(out_uri.path, "w") as f:
-        f.write(dest_dir)
 
+    # Correct: out_uri is already a string path
+    with open(out_uri, "w") as f:
+        f.write(dest_dir)
 
 @dsl.pipeline(name="demand-forecasting-vtx-pipeline")
 def pipeline(
