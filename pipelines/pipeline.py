@@ -24,14 +24,16 @@ def extract_features_to_gcs(
 
     client = bigquery.Client(project=project_id)
     src_table = f"{project_id}.{dataset}.{table}"
-    dest_uri = f"{gcs_uri_prefix}/bq_export/features-*.parquet"
-
+    dest_dir = f"{gcs_uri_prefix}/bq_export/"
+    dest_uri = f"{dest_dir}features-*.parquet"
+    
     job_config = bigquery.job.ExtractJobConfig(destination_format="PARQUET")
     job = client.extract_table(src_table, dest_uri, job_config=job_config)
     job.result()
-
-    with open(out_uri, "w") as f:
-        f.write(dest_uri)
+    
+    # Output only the directory path
+    with open(out_uri.path, "w") as f:
+        f.write(dest_dir)
 
 
 @dsl.pipeline(name="demand-forecasting-vtx-pipeline")
