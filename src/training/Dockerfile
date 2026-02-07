@@ -2,21 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Copy requirements first (for build cache efficiency)
+COPY requirements.txt /app/requirements.txt
+
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Copy source
 COPY src /app/src
-
-# Install runtime deps (include fsspec + gcsfs for gs:// IO)
-RUN pip install --no-cache-dir \
-    numpy \
-    pandas \
-    scikit-learn \
-    joblib \
-    pyarrow \
-    db-dtypes \
-    google-cloud-bigquery \
-    google-cloud-storage \
-    fsspec \
-    gcsfs
 
 ENV PYTHONPATH=/app
 
