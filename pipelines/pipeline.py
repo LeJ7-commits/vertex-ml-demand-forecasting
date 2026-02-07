@@ -59,7 +59,6 @@ def pipeline(
         project=project_id,
         location=region,
 
-        # ✅ IMPORTANT: where Vertex will write AIP_MODEL_DIR (GCS) for the training job outputs
         base_output_directory={
             "output_uri_prefix": f"{gcs_prefix}/runs/{dsl.PIPELINE_JOB_NAME_PLACEHOLDER}/train"
         },
