@@ -30,28 +30,22 @@ def smape(y_true: np.ndarray, y_pred: np.ndarray, eps: float = 1e-8) -> float:
 
 def date_splits(unique_dates: List[pd.Timestamp], cfg: SplitConfig) -> Tuple[pd.Timestamp, pd.Timestamp]:
     n = len(unique_dates)
-
-    # Need at least 3 distinct dates to have train / cal / test
     if n < 3:
         raise ValueError(f"Not enough unique dates for splitting: {n} (need >= 3)")
 
-    # If dataset is small, fall back to: last date = test, second last = cal, rest = train
-    # This guarantees non-empty (or at least meaningful) splits for 3..9 dates.
     if n < 10:
-        train_end = unique_dates[n - 3]  # up to third-last date
-        cal_end = unique_dates[n - 2]    # second-last date
+        train_end = unique_dates[n - 3]
+        cal_end = unique_dates[n - 2]
         return train_end, cal_end
 
-    # Normal case (>=10 dates): use configured fractions
     train_end_idx = int(np.floor(n * cfg.train_frac)) - 1
     cal_end_idx = int(np.floor(n * (cfg.train_frac + cfg.cal_frac))) - 1
 
-    train_end_idx = np.clip(train_end_idx, 0, n - 3)  # keep room for cal+test
+    train_end_idx = np.clip(train_end_idx, 0, n - 3)
     cal_end_idx = np.clip(cal_end_idx, train_end_idx + 1, n - 2)
 
-    train_end = unique_dates[int(train_end_idx)]
-    cal_end = unique_dates[int(cal_end_idx)]
-    return train_end, cal_end
+    return unique_dates[int(train_end_idx)], unique_dates[int(cal_end_idx)]
+
 
 def load_features_from_bq(project_id: str, dataset: str, table: str, limit: int | None = None) -> pd.DataFrame:
     client = bigquery.Client(project=project_id)
@@ -73,13 +67,16 @@ def load_features_from_bq(project_id: str, dataset: str, table: str, limit: int 
     return df
 
 
+def load_features_from_parquet(features_uri: str) -> pd.DataFrame:
+    # Requires pyarrow + gcsfs installed in the container
+    df = pd.read_parquet(features_uri)
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
 def prep_xy(df: pd.DataFrame):
     id_cols = ["date", "store_id", "item_id"]
     y = df["y"].astype(float).values
-
-    df = df.copy()
-    df["store_id_enc"], _ = pd.factorize(df["store_id"])
-    df["item_id_enc"], _ = pd.factorize(df["item_id"])
 
     feature_cols = [
         "store_id_enc", "item_id_enc",
@@ -90,7 +87,7 @@ def prep_xy(df: pd.DataFrame):
         "roll_std_28",
     ]
     X = df[feature_cols].astype(float).values
-    meta = df[id_cols]
+    meta = df[id_cols].copy()
     return X, y, meta, feature_cols
 
 
@@ -102,18 +99,35 @@ def main():
     ap.add_argument("--artifacts_dir", default="artifacts")
     ap.add_argument("--alpha", type=float, default=0.1)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--features_uri", default="", help="Optional: gs://.../features-*.parquet")
     args = ap.parse_args()
 
+    # Ensure artifacts land in Vertex-managed GCS folder when running on Vertex
+    vertex_model_dir = os.environ.get("AIP_MODEL_DIR", "")
+    if vertex_model_dir:
+        args.artifacts_dir = vertex_model_dir
     os.makedirs(args.artifacts_dir, exist_ok=True)
 
-    df = load_features_from_bq(
-        project_id=args.project_id,
-        dataset=args.dataset,
-        table=args.table,
-        limit=(args.limit if args.limit > 0 else None),
-    )
+    # Load features
+    if args.features_uri and args.features_uri.startswith("gs://"):
+        df = load_features_from_parquet(args.features_uri)
+        # Optional downsample (limit) for quick runs
+        if args.limit and args.limit > 0 and len(df) > args.limit:
+            df = df.sample(n=int(args.limit), random_state=42)
+    else:
+        df = load_features_from_bq(
+            project_id=args.project_id,
+            dataset=args.dataset,
+            table=args.table,
+            limit=(args.limit if args.limit > 0 else None),
+        )
 
     df = df.sort_values("date").reset_index(drop=True)
+
+    # Factorize ONCE to avoid encoding drift across splits
+    df["store_id_enc"], _ = pd.factorize(df["store_id"])
+    df["item_id_enc"], _ = pd.factorize(df["item_id"])
+
     unique_dates = sorted(df["date"].dropna().unique().tolist())
     train_end, cal_end = date_splits(unique_dates, SplitConfig())
 
@@ -153,7 +167,7 @@ def main():
             "n_cal": int(len(cal_df)),
             "n_test": int(len(test_df)),
         },
-        "conformal": {"alpha": args.alpha, "q_abs_resid": q},
+        "conformal": {"alpha": args.alpha, "q_abs_resid": float(q)},
         "metrics": {
             "mae": mae,
             "rmse": rmse,
@@ -163,6 +177,8 @@ def main():
         },
         "features": feature_cols,
         "model": "HistGradientBoostingRegressor",
+        "data_source": ("parquet" if args.features_uri else "bigquery"),
+        "features_uri": args.features_uri,
     }
 
     dump(model, os.path.join(args.artifacts_dir, "model.joblib"))
@@ -177,12 +193,6 @@ def main():
     pred_out.to_csv(os.path.join(args.artifacts_dir, "predictions.csv"), index=False)
 
     print("METRICS_JSON=" + json.dumps(metrics))
-    ap.add_argument("--features_uri", default="", help="Optional: gs://.../features-*.parquet")
-
-    vertex_model_dir = os.environ.get("AIP_MODEL_DIR", "")
-    if vertex_model_dir:
-        args.artifacts_dir = vertex_model_dir  # override to ensure outputs land in GCS
-    os.makedirs(args.artifacts_dir, exist_ok=True)
 
 
 if __name__ == "__main__":
