@@ -3,6 +3,8 @@ import json
 import os
 from dataclasses import dataclass
 from typing import List, Tuple
+import pyarrow.dataset as ds
+import pyarrow as pa
 
 import numpy as np
 import pandas as pd
@@ -66,12 +68,11 @@ def load_features_from_bq(project_id: str, dataset: str, table: str, limit: int 
     df["date"] = pd.to_datetime(df["date"])
     return df
 
-
-def load_features_from_parquet(features_uri: str) -> pd.DataFrame:
-    # Requires pyarrow + gcsfs installed in the container
-    df = pd.read_parquet(features_uri)
-    df["date"] = pd.to_datetime(df["date"])
-    return df
+def load_features_from_parquet(features_uri: str):
+    # features_uri like gs://bucket/path/bq_export/
+    dataset = ds.dataset(features_uri, format="parquet")  # works with directory
+    table = dataset.to_table()
+    return table.to_pandas()
 
 
 def prep_xy(df: pd.DataFrame):
