@@ -77,6 +77,7 @@ def pipeline(
                     "--table", features_table,
                     "--alpha", str(alpha),
                     "--limit", str(limit),
+                    "--features_uri", extract.outputs["out_uri"],
                 ],
             },
         }],
