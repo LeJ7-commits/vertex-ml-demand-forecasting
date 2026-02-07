@@ -40,8 +40,11 @@ def pipeline(
     region: str,
     dataset: str = "demand_fcst",
     features_table: str = "features_demand_daily",
-    gcs_prefix: str = "",          # e.g. gs://<bucket>/pipeline-artifacts
-    trainer_image: str = "",       # e.g. europe-north1-docker.pkg.dev/<proj>/trainer/trainer:0.4
+    gcs_prefix: str = "",
+    trainer_image: str = "",
+    serving_image: str = "",                 # NEW
+    model_display_name: str = "demand-fcst", # NEW
+    parent_model: str = "",                  # NEW
     alpha: float = 0.1,
     limit: int = 0,
 ):
