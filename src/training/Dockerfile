@@ -11,7 +11,9 @@ RUN pip install --no-cache-dir \
     scikit-learn \
     joblib \
     google-cloud-bigquery \
+    google-cloud-storage \
     db-dtypes \
-    pyarrow
+    pyarrow \
+    gcsfs
 
 ENTRYPOINT ["python", "trainer.py"]
