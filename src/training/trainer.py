@@ -13,7 +13,8 @@ from google.cloud import bigquery
 from joblib import dump
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-
+from urllib.parse import urlparse
+from google.cloud import storage
 from src.training.conformal import conformal_quantile, conformal_interval, interval_coverage
 
 
@@ -23,6 +24,25 @@ class SplitConfig:
     cal_frac: float = 0.15
     test_frac: float = 0.15
 
+def is_gcs(path: str) -> bool:
+    return path.startswith("gs://")
+
+def upload_file_to_gcs(local_path: str, gcs_dir: str) -> str:
+    """
+    Uploads local_path to gcs_dir (a gs://bucket/prefix directory).
+    Returns the full gs:// URI of the uploaded object.
+    """
+    u = urlparse(gcs_dir)
+    bucket_name = u.netloc
+    prefix = u.path.lstrip("/").rstrip("/")
+    blob_name = f"{prefix}/{os.path.basename(local_path)}" if prefix else os.path.basename(local_path)
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    blob.upload_from_filename(local_path)
+
+    return f"gs://{bucket_name}/{blob_name}"
 
 def smape(y_true: np.ndarray, y_pred: np.ndarray, eps: float = 1e-8) -> float:
     y_true = np.asarray(y_true, dtype=float)
@@ -183,31 +203,43 @@ def main():
         "features_uri": args.features_uri,
     }
 
-    # Ensure artifacts dir exists (local or gs:// via AIP_MODEL_DIR)
-    os.makedirs(args.artifacts_dir, exist_ok=True)
-
-    # Save model + metrics
-    model_path = os.path.join(args.artifacts_dir, "model.joblib")
-    joblib.dump(model, model_path)
-
-    metrics_path = os.path.join(args.artifacts_dir, "metrics.json")
-    with open(metrics_path, "w") as f:
+    # Decide output directory
+    out_dir = args.artifacts_dir  # may be local path or gs://
+    
+    # Always write locally first
+    local_dir = "/tmp/artifacts"
+    os.makedirs(local_dir, exist_ok=True)
+    
+    local_model = os.path.join(local_dir, "model.joblib")
+    local_metrics = os.path.join(local_dir, "metrics.json")
+    local_preds = os.path.join(local_dir, "predictions.csv")
+    
+    joblib.dump(model, local_model)
+    
+    with open(local_metrics, "w") as f:
         json.dump(metrics, f, indent=2)
-
-    # Save predictions
-    pred_out = meta_test.copy()
-    pred_out["y_true"] = y_test
-    pred_out["y_pred"] = test_pred
-    pred_out["y_lo"] = lo
-    pred_out["y_hi"] = hi
-    pred_path = os.path.join(args.artifacts_dir, "predictions.csv")
-    pred_out.to_csv(pred_path, index=False)
-
+    
+    pred_out.to_csv(local_preds, index=False)
+    
+    # Upload (or copy) to final destination
+    if is_gcs(out_dir):
+        model_path = upload_file_to_gcs(local_model, out_dir)
+        metrics_path = upload_file_to_gcs(local_metrics, out_dir)
+        pred_path = upload_file_to_gcs(local_preds, out_dir)
+    else:
+        os.makedirs(out_dir, exist_ok=True)
+        model_path = os.path.join(out_dir, "model.joblib")
+        metrics_path = os.path.join(out_dir, "metrics.json")
+        pred_path = os.path.join(out_dir, "predictions.csv")
+        joblib.dump(model, model_path)
+        with open(metrics_path, "w") as f:
+            json.dump(metrics, f, indent=2)
+        pred_out.to_csv(pred_path, index=False)
+    
     print(f"Saved model to: {model_path}")
     print(f"Saved metrics to: {metrics_path}")
     print(f"Saved predictions to: {pred_path}")
-
-    # Useful for log scraping
+    
     print("METRICS_JSON=" + json.dumps(metrics))
 
 if __name__ == "__main__":
