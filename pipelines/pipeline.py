@@ -63,6 +63,7 @@ def pipeline(
         project=project_id,
         location=region,
         base_output_directory=f"{gcs_prefix}/runs/{dsl.PIPELINE_JOB_NAME_PLACEHOLDER}/train",
+        service_account="vertex-pipeline-runner@vertex-demand-260203-13078.iam.gserviceaccount.com",
         worker_pool_specs=[{
             "machine_spec": {"machine_type": "n1-standard-4"},
             "replica_count": 1,
