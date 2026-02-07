@@ -1,21 +1,14 @@
 FROM python:3.11-slim
-
 WORKDIR /app
 
-# Copy only training code
-COPY . /app
+COPY src /app/src
 
 RUN pip install --no-cache-dir -U pip setuptools wheel && \
     pip install --no-cache-dir \
-      numpy \
-      pandas \
-      scikit-learn \
-      joblib \
-      google-cloud-bigquery \
-      google-cloud-storage \
-      db-dtypes \
-      pyarrow \
-      fsspec \
-      gcsfs
+      numpy pandas scikit-learn joblib \
+      google-cloud-bigquery google-cloud-storage \
+      db-dtypes pyarrow \
+      fsspec gcsfs
 
-ENTRYPOINT ["python", "trainer.py"]
+ENV PYTHONPATH=/app
+ENTRYPOINT ["python", "-m", "src.training.trainer"]
