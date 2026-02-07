@@ -161,23 +161,18 @@ def main():
     print("ARTIFACTS_DIR=" + args.artifacts_dir)
 
     # -----------------------------
-    # Load features
+    # Load features (BigQuery only - most reliable in Vertex)
     # -----------------------------
-    if args.features_uri and args.features_uri.startswith("gs://"):
-        df = load_features_from_parquet(args.features_uri)
-        if args.limit and args.limit > 0 and len(df) > args.limit:
-            df = df.sample(n=int(args.limit), random_state=42)
-    else:
-        df = load_features_from_bq(
-            project_id=args.project_id,
-            dataset=args.dataset,
-            table=args.table,
-            limit=(args.limit if args.limit > 0 else None),
-        )
-
+    df = load_features_from_bq(
+        project_id=args.project_id,
+        dataset=args.dataset,
+        table=args.table,
+        limit=(args.limit if args.limit > 0 else None),
+    )
+    
     if df.empty:
-        raise ValueError("Loaded features dataframe is empty. Check your source table / parquet path.")
-
+        raise ValueError("Loaded features dataframe is empty. Check your source table.")
+    
     df = df.sort_values("date").reset_index(drop=True)
 
     # Factorize ONCE to avoid encoding drift across splits
