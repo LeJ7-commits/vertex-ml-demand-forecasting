@@ -61,15 +61,9 @@ def pipeline(
         display_name="train-demand-model",
         project=project_id,
         location=region,
-
-        base_output_directory={
-            "output_uri_prefix": f"{gcs_prefix}/runs/{dsl.PIPELINE_JOB_NAME_PLACEHOLDER}/train"
-        },
-
+        base_output_directory=f"{gcs_prefix}/runs/{dsl.PIPELINE_JOB_NAME_PLACEHOLDER}/train",
         worker_pool_specs=[{
-            "machine_spec": {
-                "machine_type": "n1-standard-4",
-            },
+            "machine_spec": {"machine_type": "n1-standard-4"},
             "replica_count": 1,
             "container_spec": {
                 "image_uri": trainer_image,
