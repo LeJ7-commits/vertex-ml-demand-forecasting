@@ -55,6 +55,7 @@ def pipeline(
         table=features_table,
         gcs_uri_prefix=gcs_prefix,
     )
+    extract.set_caching_options(enable_caching=False)
 
     # Step 2: run custom container training job
     train = CustomTrainingJobOp(
