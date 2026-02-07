@@ -177,6 +177,12 @@ def main():
     pred_out.to_csv(os.path.join(args.artifacts_dir, "predictions.csv"), index=False)
 
     print("METRICS_JSON=" + json.dumps(metrics))
+    ap.add_argument("--features_uri", default="", help="Optional: gs://.../features-*.parquet")
+
+    vertex_model_dir = os.environ.get("AIP_MODEL_DIR", "")
+    if vertex_model_dir:
+        args.artifacts_dir = vertex_model_dir  # override to ensure outputs land in GCS
+    os.makedirs(args.artifacts_dir, exist_ok=True)
 
 
 if __name__ == "__main__":
