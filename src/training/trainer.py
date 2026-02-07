@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import joblib
 from dataclasses import dataclass
 from typing import List, Tuple
 import pyarrow.dataset as ds
@@ -182,19 +183,32 @@ def main():
         "features_uri": args.features_uri,
     }
 
-    dump(model, os.path.join(args.artifacts_dir, "model.joblib"))
-    with open(os.path.join(args.artifacts_dir, "metrics.json"), "w") as f:
+    # Ensure artifacts dir exists (local or gs:// via AIP_MODEL_DIR)
+    os.makedirs(args.artifacts_dir, exist_ok=True)
+
+    # Save model + metrics
+    model_path = os.path.join(args.artifacts_dir, "model.joblib")
+    joblib.dump(model, model_path)
+
+    metrics_path = os.path.join(args.artifacts_dir, "metrics.json")
+    with open(metrics_path, "w") as f:
         json.dump(metrics, f, indent=2)
 
+    # Save predictions
     pred_out = meta_test.copy()
     pred_out["y_true"] = y_test
     pred_out["y_pred"] = test_pred
     pred_out["y_lo"] = lo
     pred_out["y_hi"] = hi
-    pred_out.to_csv(os.path.join(args.artifacts_dir, "predictions.csv"), index=False)
+    pred_path = os.path.join(args.artifacts_dir, "predictions.csv")
+    pred_out.to_csv(pred_path, index=False)
 
+    print(f"Saved model to: {model_path}")
+    print(f"Saved metrics to: {metrics_path}")
+    print(f"Saved predictions to: {pred_path}")
+
+    # Useful for log scraping
     print("METRICS_JSON=" + json.dumps(metrics))
-
 
 if __name__ == "__main__":
     main()
