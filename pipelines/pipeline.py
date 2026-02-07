@@ -1,5 +1,5 @@
 from kfp import dsl
-from kfp.dsl import Artifact, Output, component
+from kfp.dsl import component, OutputPath
 from google_cloud_pipeline_components.v1.custom_job import CustomTrainingJobOp
 
 
@@ -15,7 +15,7 @@ def extract_features_to_gcs(
     dataset: str,
     table: str,
     gcs_uri_prefix: str,
-    out_uri: Output[Artifact],
+    out_uri: OutputPath(str),   # <-- string output
 ):
     """
     Exports BigQuery table to GCS as Parquet shards.
@@ -30,7 +30,7 @@ def extract_features_to_gcs(
     job = client.extract_table(src_table, dest_uri, job_config=job_config)
     job.result()
 
-    with open(out_uri.path, "w") as f:
+    with open(out_uri, "w") as f:
         f.write(dest_uri)
 
 
