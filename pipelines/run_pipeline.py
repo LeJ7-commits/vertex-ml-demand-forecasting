@@ -76,7 +76,7 @@ def main():
         template_path=args.template_path,
         pipeline_root=args.pipeline_root,
         parameter_values=params,
-        enable_caching=True,
+        enable_caching=False,
     )
 
     job.run(sync=True, service_account=pipeline_sa)
