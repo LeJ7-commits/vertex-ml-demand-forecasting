@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+WORKDIR /app
+
+COPY src/serving/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY src /app/src
+ENV PYTHONPATH=/app
+
+# quick import check
+RUN python -c "import fastapi, uvicorn, joblib, pandas; print('serving-deps-ok')"
+
+# Vertex will hit these routes
+ENV AIP_HEALTH_ROUTE=/health
+ENV AIP_PREDICT_ROUTE=/predict
+
+EXPOSE 8080
+
+# IMPORTANT: start the FastAPI server (NOT trainer.py)
+ENTRYPOINT ["uvicorn", "src.serving.app:app", "--host", "0.0.0.0", "--port", "8080"]
