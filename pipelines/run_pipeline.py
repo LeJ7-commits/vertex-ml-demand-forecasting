@@ -12,22 +12,42 @@ def main():
     ap.add_argument("--dataset", default="demand_fcst")
     ap.add_argument("--features_table", default="features_demand_daily")
     ap.add_argument("--gcs_prefix", required=True)
-    ap.add_argument("--trainer_image", default=None, help="Override trainer image URI. If omitted, uses IMAGE_URI env var.")
+
+    ap.add_argument(
+        "--trainer_image",
+        default=None,
+        help="Override trainer image URI. If omitted, uses IMAGE_URI env var.",
+    )
+
+    # NEW (Step 9)
+    ap.add_argument(
+        "--serving_image",
+        default=None,
+        help="Serving container image URI (for model registry). If omitted, uses trainer_image.",
+    )
+    ap.add_argument(
+        "--model_display_name",
+        default="demand-forecasting-conformal",
+        help="Vertex Model Registry display name.",
+    )
+    ap.add_argument(
+        "--parent_model",
+        default="",
+        help="Optional: existing model resource name to create a new VERSION under it.",
+    )
+
     ap.add_argument("--alpha", type=float, default=0.1)
     ap.add_argument("--limit", type=int, default=0)
     args = ap.parse_args()
 
     trainer_image = args.trainer_image or os.environ.get("IMAGE_URI")
+    serving_image = args.serving_image or trainer_image  # default to trainer image if not provided
     pipeline_sa = os.environ.get("PIPELINE_SA")
 
     if not trainer_image:
-        raise RuntimeError(
-            "Missing trainer image. Provide --trainer_image or export IMAGE_URI."
-        )
+        raise RuntimeError("Missing trainer image. Provide --trainer_image or export IMAGE_URI.")
     if not pipeline_sa:
-        raise RuntimeError(
-            "Missing PIPELINE_SA. Export PIPELINE_SA='...@....iam.gserviceaccount.com'."
-        )
+        raise RuntimeError("Missing PIPELINE_SA. Export PIPELINE_SA='...@....iam.gserviceaccount.com'.")
 
     aiplatform.init(project=args.project_id, location=args.region)
 
@@ -40,6 +60,11 @@ def main():
         "trainer_image": trainer_image,
         "alpha": float(args.alpha),
         "limit": int(args.limit),
+
+        # NEW (Step 9): these MUST exist as pipeline inputs in pipelines/pipeline.py
+        "serving_image": serving_image,
+        "model_display_name": args.model_display_name,
+        "parent_model": args.parent_model,
     }
 
     print("Launching pipeline with parameters:")
