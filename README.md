@@ -1,30 +1,48 @@
 # Vertex ML Demand Forecasting  
 **End-to-end demand forecasting system on Vertex AI with conformal prediction intervals**
 
-This project demonstrates a production-style ML system that trains, deploys, and monitors a demand forecasting model using Google Cloud Vertex AI.  
-It is designed as a portfolio-grade example of MLOps, reproducible pipelines, and uncertainty-aware forecasting.
-
+Production-style demand forecasting system on Google Cloud Vertex AI with conformal prediction intervals, automated pipelines, deployment, and monitoring.
+![CI](https://github.com/LeJ7-commits/vertex-ml-demand-forecasting/actions/workflows/ci.yml/badge.svg)
 ---
 
 ## What this system does
 
 - Ingests raw demand data into BigQuery
 - Builds time-series features (lags, rolling statistics)
-- Trains gradient boosting models
+- Trains gradient boosting models for demand forecasting
 - Produces conformal prediction intervals
 - Runs as a reproducible Vertex AI pipeline
 - Registers models in the Vertex Model Registry
 - Deploys models to a managed online endpoint
 - Logs predictions for monitoring
-- Monitors feature drift on key inputs
+- Monitors feature drift to detect data distribution shifts
 - Provides a runbook for retraining and operations
 
 ---
+
+## Example use case
+
+Retail demand forecasting for:
+- Inventory planning
+- Stock replenishment
+- Promotion impact estimation
+- Safety stock decisions using uncertainty intervals
+
+--- 
 
 ## Architecture
 
 (TBP)
 
+--- 
+
+## Tech stack
+
+- Python, scikit-learn, LightGBM
+- Google Cloud: BigQuery, Vertex AI, Artifact Registry
+- Vertex AI Pipelines (KFP)
+- Conformal prediction for uncertainty estimation
+- Terraform for infrastructure
 
 **Pipeline flow:**
 
@@ -92,6 +110,16 @@ python pipelines/run_pipeline.py \
   --trainer_image $IMAGE \
   --serving_image $IMAGE
 ```
+
+## Example output
+
+Model metrics from a sample run:
+
+- SMAPE: ~1.9%
+- Coverage (90% interval): ~0.80
+- Average interval width: ~0.71
+
+This demonstrates calibrated uncertainty using conformal prediction.
   
 ## Monitoring
 - Prediction logging enabled on endpoint
