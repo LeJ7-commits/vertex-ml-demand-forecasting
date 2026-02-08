@@ -1,14 +1,14 @@
 import os
-import json
 import joblib
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 app = FastAPI()
 
 MODEL = None
 MODEL_PATH = None
+
 
 def _download_from_gcs(gcs_uri: str, local_path: str) -> str:
     # gcs_uri like gs://bucket/path/to/model.joblib
@@ -28,8 +28,9 @@ def _download_from_gcs(gcs_uri: str, local_path: str) -> str:
     blob.download_to_filename(local_path)
     return local_path
 
+
 def _resolve_model_path() -> str:
-    # 1) If Vertex provides a local model dir, use it
+    # 1) If Vertex mounts a local model directory
     aip_model_dir = os.environ.get("AIP_MODEL_DIR")
     if aip_model_dir and os.path.isdir(aip_model_dir):
         candidates = [
@@ -40,54 +41,14 @@ def _resolve_model_path() -> str:
             if os.path.exists(c):
                 return c
 
-    # 2) Otherwise, use AIP_STORAGE_URI (Vertex sets this for custom containers)
+    # 2) Otherwise use AIP_STORAGE_URI (GCS path to artifact-uri)
+    # If artifact-uri is a folder, model.joblib should be under it (or under /model/)
     aip_storage_uri = os.environ.get("AIP_STORAGE_URI")
     if aip_storage_uri:
-        # Your artifact may be a directory or direct file.
-        # If it's a directory, assume model.joblib inside it.
         if aip_storage_uri.endswith("/"):
-            gcs_model_uri = aip_storage_uri + "model.joblib"
-        elif aip_storage_uri.endswith(".joblib"):
-            gcs_model_uri = aip_storage_uri
+            base = aip_storage_uri[:-1]
         else:
-            gcs_model_uri = aip_storage_uri.rstrip("/") + "/model.joblib"
+            base = aip_storage_uri
 
-        local_path = "/tmp/model/model.joblib"
-        return _download_from_gcs(gcs_model_uri, local_path)
-
-    # 3) Last resort: allow manual path for debugging
-    fallback = os.environ.get("MODEL_PATH")
-    if fallback and os.path.exists(fallback):
-        return fallback
-
-    raise FileNotFoundError(
-        f"Could not locate model.joblib. "
-        f"AIP_MODEL_DIR={aip_model_dir} (exists={bool(aip_model_dir and os.path.isdir(aip_model_dir))}), "
-        f"AIP_STORAGE_URI={os.environ.get('AIP_STORAGE_URI')}"
-    )
-
-def _load_model_once():
-    global MODEL, MODEL_PATH
-    if MODEL is None:
-        MODEL_PATH = _resolve_model_path()
-        MODEL = joblib.load(MODEL_PATH)
-
-@app.on_event("startup")
-def startup():
-    _load_model_once()
-
-class PredictRequest(BaseModel):
-    instances: List[Dict[str, Any]]
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-@app.post("/predict")
-def predict(req: PredictRequest):
-    _load_model_once()
-    # Expect instances is list of feature dicts
-    import pandas as pd
-    X = pd.DataFrame(req.instances)
-    preds = MODEL.predict(X)
-    return {"predictions": preds.tolist(), "model_path": MODEL_PATH}
+        # Try both common layouts
+        gcs_candida_
