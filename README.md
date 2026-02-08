@@ -65,6 +65,7 @@ Model Registry → Endpoint → Monitoring
 ## Quickstart (local training)
 pip install -r requirements.txt
 python src/training/train.py
+
 Run on Vertex AI
 Set environment variables:
 
