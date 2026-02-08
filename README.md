@@ -34,6 +34,12 @@ Retail demand forecasting for:
 
 (TBP)
 
+**Pipeline flow:**
+
+Raw data → BigQuery → Feature table →  
+Vertex Training → Conformal calibration →  
+Model Registry → Endpoint → Monitoring
+
 --- 
 
 ## Tech stack
@@ -43,12 +49,6 @@ Retail demand forecasting for:
 - Vertex AI Pipelines (KFP)
 - Conformal prediction for uncertainty estimation
 - Terraform for infrastructure
-
-**Pipeline flow:**
-
-Raw data → BigQuery → Feature table →  
-Vertex Training → Conformal calibration →  
-Model Registry → Endpoint → Monitoring
 
 ---
 
