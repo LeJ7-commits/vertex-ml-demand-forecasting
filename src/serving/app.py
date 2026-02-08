@@ -11,7 +11,6 @@ MODEL_PATH = None
 
 
 def _download_from_gcs(gcs_uri: str, local_path: str) -> str:
-    # gcs_uri like gs://bucket/path/to/model.joblib
     from google.cloud import storage
 
     if not gcs_uri.startswith("gs://"):
@@ -30,7 +29,6 @@ def _download_from_gcs(gcs_uri: str, local_path: str) -> str:
 
 
 def _resolve_model_path() -> str:
-    # 1) If Vertex mounts a local model directory
     aip_model_dir = os.environ.get("AIP_MODEL_DIR")
     if aip_model_dir and os.path.isdir(aip_model_dir):
         candidates = [
@@ -41,14 +39,58 @@ def _resolve_model_path() -> str:
             if os.path.exists(c):
                 return c
 
-    # 2) Otherwise use AIP_STORAGE_URI (GCS path to artifact-uri)
-    # If artifact-uri is a folder, model.joblib should be under it (or under /model/)
     aip_storage_uri = os.environ.get("AIP_STORAGE_URI")
     if aip_storage_uri:
-        if aip_storage_uri.endswith("/"):
-            base = aip_storage_uri[:-1]
-        else:
-            base = aip_storage_uri
+        base = aip_storage_uri[:-1] if aip_storage_uri.endswith("/") else aip_storage_uri
+        gcs_candidates = [
+            base + "/model.joblib",
+            base + "/model/model.joblib",
+        ]
+        for gcs_path in gcs_candidates:
+            try:
+                return _download_from_gcs(gcs_path, "/tmp/model/model.joblib")
+            except Exception:
+                pass
+        raise FileNotFoundError(
+            f"Could not find model.joblib in AIP_STORAGE_URI={aip_storage_uri}. Tried: {gcs_candidates}"
+        )
 
-        # Try both common layouts
-        gcs_candida_
+    fallback = os.environ.get("MODEL_PATH")
+    if fallback and os.path.exists(fallback):
+        return fallback
+
+    raise FileNotFoundError(
+        f"Could not locate model.joblib. "
+        f"AIP_MODEL_DIR={aip_model_dir} (exists={bool(aip_model_dir and os.path.isdir(aip_model_dir))}), "
+        f"AIP_STORAGE_URI={os.environ.get('AIP_STORAGE_URI')}"
+    )
+
+
+def _load_model_once():
+    global MODEL, MODEL_PATH
+    if MODEL is None:
+        MODEL_PATH = _resolve_model_path()
+        MODEL = joblib.load(MODEL_PATH)
+
+
+@app.on_event("startup")
+def startup():
+    _load_model_once()
+
+
+class PredictRequest(BaseModel):
+    instances: List[Dict[str, Any]]
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/predict")
+def predict(req: PredictRequest):
+    _load_model_once()
+    import pandas as pd
+    X = pd.DataFrame(req.instances)
+    preds = MODEL.predict(X)
+    return {"predictions": preds.tolist(), "model_path": MODEL_PATH}
