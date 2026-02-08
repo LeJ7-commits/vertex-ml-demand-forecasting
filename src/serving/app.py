@@ -1,6 +1,6 @@
 import os
 import joblib
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Any
 
@@ -86,11 +86,19 @@ class PredictRequest(BaseModel):
 def health():
     return {"status": "ok"}
 
-
 @app.post("/predict")
 def predict(req: PredictRequest):
-    _load_model_once()
+    _load_model()
     import pandas as pd
+
     X = pd.DataFrame(req.instances)
+
+    # Prevent empty feature payloads
+    if X.shape[1] == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No features provided. Expect instances=[{feature: value, ...}]."
+        )
+
     preds = MODEL.predict(X)
     return {"predictions": preds.tolist(), "model_path": MODEL_PATH}
