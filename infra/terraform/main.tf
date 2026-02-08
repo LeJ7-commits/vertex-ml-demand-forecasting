@@ -3,8 +3,6 @@ provider "google" {
   region  = var.region
 }
 
-# --- Enable required APIs (prevents "API not enabled" surprises)
-# Terraform samples often assume this is enabled; we enforce it.  :contentReference[oaicite:2]{index=2}
 resource "google_project_service" "aiplatform" {
   service            = "aiplatform.googleapis.com"
   disable_on_destroy = false
@@ -25,13 +23,11 @@ resource "google_project_service" "artifactregistry" {
   disable_on_destroy = false
 }
 
-# --- Service account for Vertex AI Pipelines runs
 resource "google_service_account" "pipeline_runner" {
   account_id   = "vertex-pipeline-runner"
   display_name = "Vertex AI pipeline runner (dev)"
 }
 
-# --- GCS bucket for pipeline artifacts (Vertex AI Pipelines artifact store) :contentReference[oaicite:3]{index=3}
 resource "google_storage_bucket" "pipeline_artifacts" {
   name                        = var.bucket_name
   location                    = var.region
