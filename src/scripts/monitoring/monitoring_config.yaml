@@ -1,0 +1,20 @@
+display_name: demand-forecasting-monitor
+
+objective_configs:
+  - training_dataset:
+      gcs_source:
+        uris:
+          - gs://YOUR_BUCKET/baseline/features-*.parquet
+      data_format: jsonl
+    drift_detection_config:
+      drift_thresholds:
+        lag_1:
+          value: 0.05
+        lag_7:
+          value: 0.05
+        roll_mean_7:
+          value: 0.05
+
+schedule_config:
+  monitor_interval:
+    seconds: 86400
