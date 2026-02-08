@@ -120,7 +120,9 @@ Model metrics from a sample run:
 - Average interval width: ~0.71
 
 This demonstrates calibrated uncertainty using conformal prediction.
-  
+
+---
+
 ## Monitoring
 - Prediction logging enabled on endpoint
 - Baseline dataset exported from training features
@@ -133,6 +135,8 @@ This demonstrates calibrated uncertainty using conformal prediction.
 - Daily monitoring schedule only
 - Small dataset for development
 - Delete endpoint when not in use
+
+---
 
 ## Engineering decisions
 
@@ -150,6 +154,8 @@ This demonstrates calibrated uncertainty using conformal prediction.
 - Distribution-free uncertainty estimates
 - Stable coverage guarantees
 - Practical for real-world forecasting
+
+---
 
 ## Future improvements
 - Automated retraining triggers
