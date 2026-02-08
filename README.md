@@ -58,7 +58,7 @@ Model Registry → Endpoint → Monitoring
   Operational utilities (baseline export, etc.)
 
 - **docs**  
-  Architecture, runbooks, and decisions
+  Runbooks, and decisions
 
 ---
 
