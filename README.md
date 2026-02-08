@@ -3,6 +3,7 @@
 
 Production-style demand forecasting system on Google Cloud Vertex AI with conformal prediction intervals, automated pipelines, deployment, and monitoring.
 ![CI](https://github.com/LeJ7-commits/vertex-ml-demand-forecasting/actions/workflows/ci.yml/badge.svg)
+
 ---
 
 ## What this system does
