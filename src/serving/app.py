@@ -1,42 +1,93 @@
 import os
 import json
 import joblib
-import pandas as pd
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import List, Dict, Any, Optional
 
 app = FastAPI()
 
-AIP_HEALTH_ROUTE = os.environ.get("AIP_HEALTH_ROUTE", "/health")
-AIP_PREDICT_ROUTE = os.environ.get("AIP_PREDICT_ROUTE", "/predict")
-AIP_MODEL_DIR = os.environ.get("AIP_MODEL_DIR", "/model")
+MODEL = None
+MODEL_PATH = None
 
-def _load_model():
-    # support common layouts:
-    candidates = [
-        os.path.join(AIP_MODEL_DIR, "model", "model.joblib"),
-        os.path.join(AIP_MODEL_DIR, "model.joblib"),
-    ]
-    for p in candidates:
-        if os.path.exists(p):
-            return joblib.load(p), p
-    raise FileNotFoundError(f"model.joblib not found in AIP_MODEL_DIR={AIP_MODEL_DIR}. Tried: {candidates}")
+def _download_from_gcs(gcs_uri: str, local_path: str) -> str:
+    # gcs_uri like gs://bucket/path/to/model.joblib
+    from google.cloud import storage
 
-MODEL, MODEL_PATH = _load_model()
+    if not gcs_uri.startswith("gs://"):
+        raise ValueError(f"Not a gs:// uri: {gcs_uri}")
 
-@app.get(AIP_HEALTH_ROUTE)
+    _, rest = gcs_uri.split("gs://", 1)
+    bucket_name, blob_name = rest.split("/", 1)
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    blob.download_to_filename(local_path)
+    return local_path
+
+def _resolve_model_path() -> str:
+    # 1) If Vertex provides a local model dir, use it
+    aip_model_dir = os.environ.get("AIP_MODEL_DIR")
+    if aip_model_dir and os.path.isdir(aip_model_dir):
+        candidates = [
+            os.path.join(aip_model_dir, "model.joblib"),
+            os.path.join(aip_model_dir, "model", "model.joblib"),
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                return c
+
+    # 2) Otherwise, use AIP_STORAGE_URI (Vertex sets this for custom containers)
+    aip_storage_uri = os.environ.get("AIP_STORAGE_URI")
+    if aip_storage_uri:
+        # Your artifact may be a directory or direct file.
+        # If it's a directory, assume model.joblib inside it.
+        if aip_storage_uri.endswith("/"):
+            gcs_model_uri = aip_storage_uri + "model.joblib"
+        elif aip_storage_uri.endswith(".joblib"):
+            gcs_model_uri = aip_storage_uri
+        else:
+            gcs_model_uri = aip_storage_uri.rstrip("/") + "/model.joblib"
+
+        local_path = "/tmp/model/model.joblib"
+        return _download_from_gcs(gcs_model_uri, local_path)
+
+    # 3) Last resort: allow manual path for debugging
+    fallback = os.environ.get("MODEL_PATH")
+    if fallback and os.path.exists(fallback):
+        return fallback
+
+    raise FileNotFoundError(
+        f"Could not locate model.joblib. "
+        f"AIP_MODEL_DIR={aip_model_dir} (exists={bool(aip_model_dir and os.path.isdir(aip_model_dir))}), "
+        f"AIP_STORAGE_URI={os.environ.get('AIP_STORAGE_URI')}"
+    )
+
+def _load_model_once():
+    global MODEL, MODEL_PATH
+    if MODEL is None:
+        MODEL_PATH = _resolve_model_path()
+        MODEL = joblib.load(MODEL_PATH)
+
+@app.on_event("startup")
+def startup():
+    _load_model_once()
+
+class PredictRequest(BaseModel):
+    instances: List[Dict[str, Any]]
+
+@app.get("/health")
 def health():
-    return {"status": "ok", "model_path": MODEL_PATH}
+    return {"status": "ok"}
 
-@app.post(AIP_PREDICT_ROUTE)
-async def predict(request: Request):
-    payload = await request.json()
-    instances = payload.get("instances", payload)
-
-    # instances can be list[dict] or dict
-    if isinstance(instances, dict):
-        df = pd.DataFrame([instances])
-    else:
-        df = pd.DataFrame(instances)
-
-    preds = MODEL.predict(df)
-    return {"predictions": preds.tolist()}
+@app.post("/predict")
+def predict(req: PredictRequest):
+    _load_model_once()
+    # Expect instances is list of feature dicts
+    import pandas as pd
+    X = pd.DataFrame(req.instances)
+    preds = MODEL.predict(X)
+    return {"predictions": preds.tolist(), "model_path": MODEL_PATH}
