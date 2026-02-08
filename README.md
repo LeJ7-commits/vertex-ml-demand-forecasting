@@ -35,7 +35,6 @@ Retail demand forecasting for:
 (TBP)
 
 **Pipeline flow:**
-
 Raw data → BigQuery → Feature table →  
 Vertex Training → Conformal calibration →  
 Model Registry → Endpoint → Monitoring
