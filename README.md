@@ -63,20 +63,27 @@ Model Registry → Endpoint → Monitoring
 ---
 
 ## Quickstart (local training)
+
+```bash
 pip install -r requirements.txt
-
 python src/training/train.py
+```
 
-Run on Vertex AI
+## Run on Vertex AI
+
 Set environment variables:
 
+```bash
 export PROJECT_ID=your-project
 export REGION=europe-north1
 export PIPELINE_ROOT=gs://your-bucket/pipeline-root
 export GCS_PREFIX=gs://your-bucket/pipeline-artifacts
 export IMAGE=your-artifact-registry-image
-Run pipeline:
+```
 
+Run the pipeline:
+
+```bash
 python pipelines/run_pipeline.py \
   --project_id $PROJECT_ID \
   --region $REGION \
@@ -84,6 +91,7 @@ python pipelines/run_pipeline.py \
   --gcs_prefix $GCS_PREFIX \
   --trainer_image $IMAGE \
   --serving_image $IMAGE
+```
   
 ## Monitoring
 - Prediction logging enabled on endpoint
