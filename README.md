@@ -32,8 +32,7 @@ Retail demand forecasting for:
 --- 
 
 ## Architecture
-<img width="2559" height="1599" alt="image" src="https://github.com/user-attachments/assets/d2612cc7-66be-4e2f-b922-3460865c33bf" />
-
+<img width="2559" height="1599" alt="image" src="https://github.com/user-attachments/assets/4111c636-7e1c-406e-ac92-04a36fd64690" />
 **Pipeline flow:**
 Raw data → BigQuery → Feature table →  
 Vertex Training → Conformal calibration →  
